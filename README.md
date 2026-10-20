@@ -8,8 +8,9 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Language-MoonBit-purple.svg" alt="MoonBit">
   <img src="https://img.shields.io/badge/Zero--FFI-Pure%20Wasm-brightgreen.svg" alt="Zero FFI">
+  <img src="https://img.shields.io/badge/CI-GitHub%20Actions-blue.svg" alt="CI">
   <img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License">
-  <img src="https://img.shields.io/badge/Tests-14%2F14%20Green-success.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-15%2F15%20Green-success.svg" alt="Tests">
 </p>
 
 ---
