@@ -1,0 +1,112 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "chgttyyr/moonsubset"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn build_cmap_format12_subtable(Array[(Int, Int)]) -> Bytes
+
+pub fn build_cmap_format4_subtable(Array[(Int, Int)]) -> Bytes
+
+pub fn build_cmap_table(Array[(Int, Int)]) -> Bytes
+
+pub fn bytes_slice(Bytes, Int, Int) -> Bytes
+
+pub fn calc_table_checksum(Bytes) -> Int
+
+pub fn generate_font_face_css(String, String) -> String
+
+pub fn get_alphanumeric_preset() -> Array[Int]
+
+pub fn get_ascii_preset() -> Array[Int]
+
+pub fn get_chinese_common_preset() -> Array[Int]
+
+pub fn get_digits_preset() -> Array[Int]
+
+pub fn get_preset_by_name(String) -> Array[Int]?
+
+pub fn log2_floor(Int) -> Int
+
+pub fn pad4(Int) -> Int
+
+pub fn parse_cmap(Bytes) -> Result[Map[Int, Int], FontError]
+
+pub fn parse_loca(Bytes, Int, Bool) -> Result[Array[Int], FontError]
+
+pub fn parse_sfnt(Bytes) -> Result[Map[String, Bytes], FontError]
+
+pub fn parse_unicode_string(String) -> Array[Int]
+
+pub fn read_i16(Bytes, Int) -> Int
+
+pub fn read_i8(Bytes, Int) -> Int
+
+pub fn read_tag(Bytes, Int) -> String
+
+pub fn read_u16(Bytes, Int) -> Int
+
+pub fn read_u32(Bytes, Int) -> Int
+
+pub fn read_u8(Bytes, Int) -> Int
+
+pub fn rebuild_glyf_and_loca(Bytes, Array[Int], Array[Int], Map[Int, Int]) -> (Bytes, Bytes, Bool)
+
+pub fn rebuild_head(Bytes, Bool) -> Bytes
+
+pub fn rebuild_hhea(Bytes, Int) -> Bytes
+
+pub fn rebuild_hmtx(Bytes, Array[Int], Int) -> Bytes
+
+pub fn rebuild_maxp(Bytes, Int) -> Bytes
+
+pub fn rebuild_sfnt(Array[(String, Bytes)], flavor? : Int) -> Bytes
+
+pub fn scan_compound_refs(Bytes, Array[Int], Map[Int, Bool]) -> Unit
+
+pub fn subset(Bytes, Array[Int]) -> Result[SubsetResult, FontError]
+
+pub fn subset_from_string(Bytes, String) -> Result[SubsetResult, FontError]
+
+pub fn write_be16(Array[Byte], Int, Int) -> Unit
+
+pub fn write_be32(Array[Byte], Int, Int) -> Unit
+
+// Errors
+
+// Types and methods
+pub(all) enum FontError {
+  InvalidSfnt(String)
+  TableNotFound(String)
+  InvalidCmap(String)
+  InvalidGlyf(String)
+  InvalidLoca(String)
+  InvalidMetrics(String)
+  UnsupportedFormat(String)
+} derive(Eq, @debug.Debug)
+pub impl Show for FontError
+
+pub(all) struct SubsetResult {
+  output_bytes : Bytes
+  orig_size : Int
+  subset_size : Int
+  orig_num_glyphs : Int
+  subset_num_glyphs : Int
+  retained_codepoints : Array[Int]
+} derive(@debug.Debug)
+pub fn SubsetResult::bytes(Self) -> Bytes
+pub fn SubsetResult::compression_ratio(Self) -> Double
+pub fn SubsetResult::savings_percent(Self) -> Double
+
+pub(all) struct TableEntry {
+  tag : String
+  checksum : Int
+  offset : Int
+  length : Int
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
