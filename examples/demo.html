@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoonSubset - TrueType 字体子集化在线预览</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --success: #34d399;
+    }
+    body {
+      margin: 0;
+      padding: 2rem;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      margin: 0 0 0.5rem 0;
+      color: var(--accent);
+      font-size: 2.2rem;
+    }
+    p.subtitle {
+      color: var(--muted);
+      margin: 0;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .stat-box {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+    }
+    .stat-val {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--success);
+    }
+    .preview-box {
+      font-size: 2.5rem;
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      margin: 1rem 0;
+      background: rgba(0,0,0,0.2);
+      font-family: 'MoonSubsetFont', monospace;
+      padding: 1rem;
+      word-break: break-all;
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 0.75rem;
+      font-size: 1rem;
+      margin-top: 0.5rem;
+    }
+    .drop-zone {
+      border: 2px dashed var(--accent);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .drop-zone:hover {
+      background: rgba(56, 189, 248, 0.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>MoonSubset 字体子集化渲染验证</h1>
+      <p class="subtitle">MoonBit 编译 · 零 FFI · 纯内存 TrueType 裁剪与 @font-face 预览</p>
+    </header>
+
+    <div class="card">
+      <h3>1. 加载子集化字体 (.ttf)</h3>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fontInput').click()">
+        <p id="dropText">点击或拖拽任意裁剪生成的 .ttf 文件至此验证渲染</p>
+        <input type="file" id="fontInput" accept=".ttf" style="display: none;">
+      </div>
+      <div class="stats-grid" id="statsGrid" style="display: none;">
+        <div class="stat-box">
+          <div class="stat-label">字体文件名</div>
+          <div class="stat-val" id="fontName">-</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">子集字体大小</div>
+          <div class="stat-val" id="fontSize">-</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">原中文字体对比 (9.7MB)</div>
+          <div class="stat-val" id="compression">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2. 实时字符渲染预览 (@font-face)</h3>
+      <label for="textInput">输入测试文本（包含子集化文字）：</label>
+      <input type="text" id="textInput" value="你好世界欢迎来到开源黑客松 ABC 123">
+
+      <div class="preview-box" id="previewBox">
+        你好世界欢迎来到开源黑客松 ABC 123
+      </div>
+      <p style="color: var(--muted); font-size: 0.85rem;">
+        注：预览框强制应用 <code>font-family: 'MoonSubsetFont'</code>。若字形已被正确裁剪并重映射，子集文字将清晰渲染；若请求了子集外的字符，将优雅回退或显示缺失字形。
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const fontInput = document.getElementById('fontInput');
+    const dropZone = document.getElementById('dropZone');
+    const dropText = document.getElementById('dropText');
+    const statsGrid = document.getElementById('statsGrid');
+    const fontName = document.getElementById('fontName');
+    const fontSize = document.getElementById('fontSize');
+    const compression = document.getElementById('compression');
+    const textInput = document.getElementById('textInput');
+    const previewBox = document.getElementById('previewBox');
+
+    textInput.addEventListener('input', () => {
+      previewBox.textContent = textInput.value;
+    });
+
+    function loadFontFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const arrayBuffer = e.target.result;
+        const font = new FontFace('MoonSubsetFont', arrayBuffer);
+        font.load().then(loadedFont => {
+          document.fonts.add(loadedFont);
+          dropText.textContent = `已成功加载: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+          statsGrid.style.display = 'grid';
+          fontName.textContent = file.name;
+          fontSize.textContent = (file.size / 1024).toFixed(2) + ' KB';
+          const simheiSize = 9745792;
+          const ratio = ((1 - file.size / simheiSize) * 100).toFixed(2);
+          compression.textContent = `节省 ${ratio}%`;
+          previewBox.style.fontFamily = "'MoonSubsetFont', sans-serif";
+        }).catch(err => {
+          alert('字体加载失败: ' + err);
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    fontInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        loadFontFile(e.target.files[0]);
+      }
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = 'var(--success)';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.style.borderColor = 'var(--accent)';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = 'var(--accent)';
+      if (e.dataTransfer.files.length > 0) {
+        loadFontFile(e.dataTransfer.files[0]);
+      }
+    });
+  </script>
+</body>
+</html>
