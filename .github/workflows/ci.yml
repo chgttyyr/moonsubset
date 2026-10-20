@@ -26,16 +26,18 @@ jobs:
         run: |
           moon check
 
-      - name: Run Test Suite (14 Tests)
+      - name: Run Test Suite (17 Tests)
         run: |
           moon test
 
-      - name: Build Executable Artifacts
+      - name: Build Executable Artifacts (Native & Wasm)
         run: |
           moon build
+          moon build --target wasm
 
       - name: Verify CLI Functionality
         run: |
           moon run cmd/main -- --help
           moon run cmd/main -- info -f fixtures/test-font.ttf
           moon run cmd/main -- subset -f fixtures/test-font.ttf -c "Hello MoonBit!" -o fixtures/ci-output.ttf --css "CITestFont"
+          moon run cmd/main -- subset -f fixtures/test-font.ttf -u "U+0020-U+007E" -o fixtures/ci-range.ttf
