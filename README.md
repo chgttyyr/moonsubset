@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Zero--FFI-Pure%20MoonBit-brightgreen.svg" alt="Zero FFI">
   <img src="https://img.shields.io/badge/CI-GitHub%20Actions-blue.svg" alt="CI">
   <img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License">
-  <img src="https://img.shields.io/badge/Tests-15%20Passed-success.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-17%20Passed-success.svg" alt="Tests">
 </p>
 
 ---
@@ -24,11 +24,13 @@
 ### 生态背景与现状说明
 - MoonBit 社区已有著名的字体解析库 [`mizchi/font`](https://github.com/mizchi/font)，其内部包含一个约 360 行的 `subset_font` 内存函数（支持 Format 12 cmap 与复合字形收集）。
 - **MoonSubset 的实际工作**：
-  1. 提供独立的命令行工具（CLI），支持直接传参、文本文件读取、Unicode 码点解析与常用字符预设；
+  1. 提供独立的命令行工具（CLI），支持直接传参、文本文件读取、Unicode 码点与闭区间/通配符解析、常用字符预设；
   2. 实现 `cmap` Format 4（16位 BMP 格式）与 Format 12（32位全量格式）的双模生成，提升跨平台兼容性；
-  3. 补全了整字体的 `head.checkSumAdjustment` 计算（`0xB1B0AFBA - total_sum`）；
-  4. 支持伴生生成 `@font-face` CSS 片段，并提供 `info` 命令用于诊断字体表目录结构；
-  5. 全部逻辑用 MoonBit 实现，无外部 C/Rust 库依赖（零 FFI）。
+  3. 支持 `kern` 字距微调表（Format 0 水平微调）智能子集化与重映射，保留专业字距并自动剪除孤立配对；
+  4. 补全了整字体的 `head.checkSumAdjustment` 计算（`0xB1B0AFBA - total_sum`）；
+  5. 支持伴生生成 `@font-face` CSS 片段，并提供 `info` 命令用于诊断字体表目录结构；
+  6. 支持跨平台与 WebAssembly 编译（`moon build --target wasm` / `moon build --target js`）；
+  7. 全部逻辑用纯 MoonBit 实现，无外部 C/Rust 库依赖（零 FFI）。
 
 ---
 
@@ -51,13 +53,16 @@
 - **TrueType `glyf` 轮廓**：支持简单字形与复合字形（解析 `flags` 并递归收集子组件，重写组件 GID）。
 - **`loca` 表重构**：统一使用 Long loca（32 位偏移），避免短偏移越界。
 - **`cmap` 表重构**：支持 Format 4 与 Format 12 子表生成。
+- **`kern` 表重构**：支持 Format 0 水平字距微调保留、两端有效性过滤、二分查找头重算及 `--no-kern` 剪除选项。
 - **度量表更新**：更新 `maxp.numGlyphs`、`hhea.numberOfHMetrics`，为保留字形重建 `hmtx`。
 - **校验和计算**：计算各表 checksum 及 `head.checkSumAdjustment`。
+- **Unicode 范围解析**：支持闭区间（`U+0020-U+007E`, `0x4E00..0x4E50`）与通配符（`U+4E??`）。
 - **元数据保留**：保留原字体中的 `name`、`OS/2`、`post` 表。
 - **命令行工具**：
   - `moonsubset subset`：子集化裁剪；
   - `moonsubset info`：查看字体表目录与基础元数据；
   - `--css`：生成 `@font-face` 声明。
+- **多平台跨编译**：支持 Native、Wasm、JavaScript 目标输出。
 
 ### 明确不支持的范围（非目标）
 - **不支持 OTF / CFF 字体**（包含 PostScript `OTTO` 轮廓的字体无法裁剪，仅支持 TrueType `glyf`）。
@@ -75,7 +80,7 @@
 
 ### 4.2 运行测试
 ```bash
-# 运行 15 组单元与集成测试
+# 运行 17 组单元与集成测试
 moon test
 ```
 
@@ -91,8 +96,8 @@ moon run cmd/main -- subset -f ./font.ttf -c "你好世界" -o ./out.ttf --css "
 # 2. 从文本文件中读取字符
 moon run cmd/main -- subset -f ./font.ttf -t ./text.txt -o ./out.ttf
 
-# 3. 按 Unicode 码点列表指定
-moon run cmd/main -- subset -f ./font.ttf -u "U+4E00,U+4E8C,0x4E09" -o ./out.ttf
+# 3. 按 Unicode 码点列表、闭区间与通配符指定
+moon run cmd/main -- subset -f ./font.ttf -u "U+0020-U+007E,U+4E00..U+4E50,U+4E??" -o ./out.ttf
 
 # 4. 使用内置常用字符预设 (chinese / ascii / digits / alphanumeric)
 moon run cmd/main -- subset -f ./font.ttf --preset chinese -o ./chinese-common.ttf
@@ -129,6 +134,7 @@ moon run cmd/main -- info -f ./font.ttf
 │   └── test-font.ttf     # NotoSansHebrew (SIL OFL 许可, 约 66KB)
 ├── cmap.mbt              # Format 4 与 Format 12 cmap 解析与生成
 ├── glyf.mbt              # loca 解析、复合字形递归与组件重写
+├── kern.mbt              # Format 0 水平 kern 字距微调表过滤与重建
 ├── moonsubset.mbt        # 端到端纯函数 API 与 info 诊断
 ├── presets.mbt           # 字符预设集
 ├── reader.mbt            # 大端二进制流读取辅助
@@ -136,8 +142,8 @@ moon run cmd/main -- info -f ./font.ttf
 ├── tables.mbt            # head, hhea, hmtx, maxp 重写
 ├── types.mbt             # 错误与数据结构定义
 ├── wasm.mbt              # Wasm 导出接口
-├── moonsubset_test.mbt   # 黑盒集成测试
-└── moonsubset_wbtest.mbt # 白盒单元测试
+├── moonsubset_test.mbt   # 黑盒集成测试 (11 组)
+└── moonsubset_wbtest.mbt # 白盒单元测试 (6 组)
 ```
 
 ---

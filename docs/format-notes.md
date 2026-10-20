@@ -105,3 +105,34 @@ MoonSubset 创新性地采用“恒定 delta 分段算法”：
 - Hinting 表：`cvt `, `fpgm`, `prep`（现代 Web / 矢量高分屏无需低分辨率栅格化指令）。
 - 复杂高级排版表：`GSUB`, `GPOS`, `GDEF`（裁剪后字形已重新紧凑排布，移除旧的特性表避免连字断链崩溃）。
 - 数字签名表：`DSIG`（子集字体哈希已变更，剪除无效签名）。
+
+---
+
+## 5. kern 字距微调表重建 (Format 0 Horizontal Kerning)
+
+对于保留字距微调（Kerning）以维持专业排版间距的字体，MoonSubset 实现了标准 Microsoft OpenType `kern` 表的解析、字形过滤、重映射与重建：
+
+### 5.1 结构与过滤原则
+- **表头**：`version: uint16 = 0`, `nTables: uint16 = 1`。
+- **Format 0 子表头**：
+  - `sub_version: uint16 = 0`
+  - `length: uint16 = 14 + nPairs * 6`
+  - `coverage: uint16 = 1`（代表水平字距、Format 0、非交叉流）。
+  - `nPairs: uint16`（子集中两端字形均被保留的有效配对总数）。
+  - `searchRange`, `entrySelector`, `rangeShift`：基于 `nPairs` 严格重算二分查找加速头。
+- **两端过滤与 GID 重写**：
+  - 仅当原配对中的 `left_gid` 与 `right_gid` 同时存在于子集字形集合时，该字距调整值才予以保留。
+  - 保留的配对将 `left` 与 `right` 翻译为子集的新紧凑 GID。
+  - 按 OpenType 规范 `(left << 16) | right` 强制对配对进行升序排序与相邻去重。
+- **空间优化策略**：若子集字符间没有留存任何微调配对（`nPairs == 0`），则完全省略输出 `kern` 表，杜绝冗余空表字节开销。
+
+---
+
+## 6. Unicode Range 语法解析引擎
+
+MoonSubset 支持 CSS 规范及 fonttools 标准的 Unicode 区间指定语法：
+- **单码点**：`U+4E00`、`0x4E00`、`4E00`
+- **连字符闭区间**：`U+0020-U+007E`、`U+0020-007E`、`0x20-0x7E`
+- **双点区间**：`U+0020..U+007E`、`0x4E00..0x4E50`
+- **CSS 通配符**：`U+4E??`（瞬时展开为 `U+4E00` 至 `U+4EFF` 共 256 个码点）
+- **混合多分隔符**：支持逗号 `,`、分号 `;`、换行 `\n`、制表符 `\t` 混用，自动去重与升序重排。

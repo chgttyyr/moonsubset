@@ -48,13 +48,30 @@ moon run cmd/main -- subset -f ./simhei.ttf --preset chinese -o ./chinese-common
 - `digits` / `numbers`：纯数字字符集（0..9）
 - `alphanumeric` / `alnum`：字母与数字组合（0-9, a-z, A-Z）
 
-### 场景 4：按十六进制 Unicode 码点列表指定
-适用于国际化本地化工程、脚本构建工具链：
+### 场景 4：按 Unicode 码点列表、区间与通配符指定
+适用于国际化本地化工程、脚本构建工具链，支持闭区间与通配符展开：
 ```bash
+# 码点列表
 moon run cmd/main -- subset -f ./my-font.ttf -u "U+4E00,U+4E8C,0x4E09,U+56DB" -o ./digits-zh.ttf
+
+# CSS 连字符闭区间
+moon run cmd/main -- subset -f ./my-font.ttf -u "U+0020-U+007E" -o ./ascii-subset.ttf
+
+# 点点区间与通配符混合
+moon run cmd/main -- subset -f ./my-font.ttf -u "0x4E00..0x4E20, U+4E??" -o ./cjk-subset.ttf
 ```
 
-### 场景 5：字体结构与表目录诊断分析 (`info`)
+### 场景 5：保留或剔除 kern 字距微调表
+若原字体包含 `kern` 表，MoonSubset 默认自动过滤并保留落在子集字形集合内的微调配对。若追求极致体积缩减可显式关闭：
+```bash
+# 默认保留合法配对
+moon run cmd/main -- subset -f ./my-font.ttf -c "AV AWAY" -o ./subset-kerned.ttf
+
+# 显式丢弃 kern 表
+moon run cmd/main -- subset -f ./my-font.ttf -c "AV AWAY" --no-kern -o ./subset-nokern.ttf
+```
+
+### 场景 6：字体结构与表目录诊断分析 (`info`)
 快速分析任意 TrueType 字体的总字形数、表目录、长短 Loca 格式与校验和校准值：
 ```bash
 moon run cmd/main -- info -f ./fixtures/test-font.ttf
@@ -90,8 +107,9 @@ Table Directory:
 | `--out` | `-o` | 路径 | subset 必填 | 裁剪生成的输出字体路径（`.ttf`） |
 | `--chars` | `-c` | 字符串 | 否 | 直接在命令行指定需要保留的字符文本 |
 | `--text-file` | `-t` | 路径 | 否 | 指定包含目标字符的文本文件（自动去重提取） |
-| `--unicodes` | `-u` | 字符串 | 否 | 逗号分隔的 Unicode 码点（如 `U+4E00,0x4E8C`） |
+| `--unicodes` | `-u` | 字符串 | 否 | 码点列表、区间或通配符（如 `U+0020-U+007E`, `U+4E??`） |
 | `--preset` | `-p` | 名称 | 否 | 内置预设集（`chinese`, `ascii`, `digits`, `alnum`） |
 | `--css` | - | 字体族名称 | 否 | 同步输出同名 `.ttf.css` 的 `@font-face` 声明代码 |
+| `--no-kern` | - | 标志 | 否 | 显式丢弃 `kern` 表（默认保留子集有效微调配对） |
 | `--verbose` | `-v` | 布尔 | 否 | 打印调试与处理中间详情 |
 | `--help` | `-h` | - | 否 | 显示帮助手册 |
