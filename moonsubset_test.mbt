@@ -171,3 +171,63 @@ test "test_9/edge_cases" {
   inspect(insp.num_glyphs, content="470")
   inspect(insp.num_tables, content="17")
 }
+
+///|
+/// Test Group 10: Kerning table (kern) preservation and filtering (Bonus 3.2 #3)
+test "test_10/kern_preservation" {
+  let font_bytes = @fs.read_file_to_bytes("fixtures/test-font.ttf")
+  let orig_tables = @moonsubset.parse_sfnt(font_bytes).unwrap()
+
+  // Find old GIDs for 'A' (65) and 'B' (66)
+  let cmap = orig_tables.get("cmap").unwrap()
+  let cp_to_gid = @moonsubset.parse_cmap(cmap).unwrap()
+  let gid_a = cp_to_gid.get(65).unwrap()
+  let gid_b = cp_to_gid.get(66).unwrap()
+
+  // Construct a synthetic kern table containing pair (gid_a, gid_b, -40) and an unselected pair (gid_a, 999, -20)
+  let kern_raw : Array[Byte] = Array::make(30, b'\x00')
+  @moonsubset.write_be16(kern_raw, 0, 0) // version = 0
+  @moonsubset.write_be16(kern_raw, 2, 1) // nTables = 1
+  @moonsubset.write_be16(kern_raw, 4, 0) // sub_version = 0
+  @moonsubset.write_be16(kern_raw, 6, 26) // length = 14 + 2 * 6 = 26
+  @moonsubset.write_be16(kern_raw, 8, 1) // coverage = 1 (horizontal format 0)
+  @moonsubset.write_be16(kern_raw, 10, 2) // nPairs = 2
+  @moonsubset.write_be16(kern_raw, 12, 12) // searchRange
+  @moonsubset.write_be16(kern_raw, 14, 1) // entrySelector
+  @moonsubset.write_be16(kern_raw, 16, 0) // rangeShift
+
+  // Pair 1: (gid_a, gid_b, -40)
+  @moonsubset.write_be16(kern_raw, 18, gid_a)
+  @moonsubset.write_be16(kern_raw, 20, gid_b)
+  @moonsubset.write_be16(kern_raw, 22, -40 & 0xFFFF)
+
+  // Pair 2: (gid_a, 999, -20) -- 999 will NOT be in subset
+  @moonsubset.write_be16(kern_raw, 24, gid_a)
+  @moonsubset.write_be16(kern_raw, 26, 999)
+  @moonsubset.write_be16(kern_raw, 28, -20 & 0xFFFF)
+
+  let table_list : Array[(String, Bytes)] = []
+  orig_tables.each(fn(tag, data) { table_list.push((tag, data)) })
+  table_list.push(("kern", Bytes::from_array(kern_raw[:])))
+
+  let font_with_kern = @moonsubset.rebuild_sfnt(table_list)
+
+  // 1. Subset with keep_kern = true
+  let res_kept = @moonsubset.subset(font_with_kern, [65, 66], keep_kern=true).unwrap()
+  let subset_tables = @moonsubset.parse_sfnt(res_kept.output_bytes).unwrap()
+  inspect(subset_tables.get("kern") is Some(_), content="true")
+
+  let new_kern = subset_tables.get("kern").unwrap()
+  let pairs = @moonsubset.parse_kern_table(new_kern)
+  inspect(pairs.length(), content="1") // Only (A, B) retained, (A, 999) dropped!
+  inspect(pairs[0].value, content="-40")
+
+  // 2. Subset with keep_kern = false
+  let res_dropped = @moonsubset.subset(
+    font_with_kern,
+    [65, 66],
+    keep_kern=false,
+  ).unwrap()
+  let dropped_tables = @moonsubset.parse_sfnt(res_dropped.output_bytes).unwrap()
+  inspect(dropped_tables.get("kern") is None, content="true")
+}

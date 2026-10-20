@@ -38,6 +38,8 @@ pub fn pad4(Int) -> Int
 
 pub fn parse_cmap(Bytes) -> Result[Map[Int, Int], FontError]
 
+pub fn parse_kern_table(Bytes) -> Array[KernPair]
+
 pub fn parse_loca(Bytes, Int, Bool) -> Result[Array[Int], FontError]
 
 pub fn parse_sfnt(Bytes) -> Result[Map[String, Bytes], FontError]
@@ -64,15 +66,17 @@ pub fn rebuild_hhea(Bytes, Int) -> Bytes
 
 pub fn rebuild_hmtx(Bytes, Array[Int], Int) -> Bytes
 
+pub fn rebuild_kern_table(Bytes, Map[Int, Int]) -> Bytes?
+
 pub fn rebuild_maxp(Bytes, Int) -> Bytes
 
 pub fn rebuild_sfnt(Array[(String, Bytes)], flavor? : Int) -> Bytes
 
 pub fn scan_compound_refs(Bytes, Array[Int], Map[Int, Bool]) -> Unit
 
-pub fn subset(Bytes, Array[Int]) -> Result[SubsetResult, FontError]
+pub fn subset(Bytes, Array[Int], keep_kern? : Bool) -> Result[SubsetResult, FontError]
 
-pub fn subset_from_string(Bytes, String) -> Result[SubsetResult, FontError]
+pub fn subset_from_string(Bytes, String, keep_kern? : Bool) -> Result[SubsetResult, FontError]
 
 pub fn subset_string_wasm(Bytes, String) -> Bytes
 
@@ -103,6 +107,12 @@ pub(all) struct FontInspection {
   checksum_adjustment : Int
   tables : Array[TableEntry]
 } derive(@debug.Debug)
+
+pub(all) struct KernPair {
+  left : Int
+  right : Int
+  value : Int
+} derive(Eq, @debug.Debug)
 
 pub(all) struct SubsetResult {
   output_bytes : Bytes

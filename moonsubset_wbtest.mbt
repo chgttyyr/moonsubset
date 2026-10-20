@@ -87,3 +87,67 @@ test "wb/wasm_exports" {
   let json = inspect_font_wasm(font_bytes)
   inspect(json.contains("num_glyphs"), content="true")
 }
+
+///|
+test "wb/kern_table_subsetting" {
+  // Build a synthetic kern table:
+  // 3 pairs: (10, 20, -50), (10, 30, -30), (25, 40, -20)
+  let kern_raw : Array[Byte] = Array::make(36, b'\x00')
+  write_be16(kern_raw, 0, 0) // version = 0
+  write_be16(kern_raw, 2, 1) // nTables = 1
+
+  // Subtable 0 header (offset 4)
+  write_be16(kern_raw, 4, 0) // sub_version = 0
+  write_be16(kern_raw, 6, 32) // length = 14 + 3 * 6 = 32
+  write_be16(kern_raw, 8, 1) // coverage = 1 (horizontal, format 0)
+  write_be16(kern_raw, 10, 3) // nPairs = 3
+  write_be16(kern_raw, 12, 12) // searchRange = 2 * 6
+  write_be16(kern_raw, 14, 1) // entrySelector = 1
+  write_be16(kern_raw, 16, 6) // rangeShift = 3*6 - 12 = 6
+
+  // Pair 1: (10, 20, -50)
+  write_be16(kern_raw, 18, 10)
+  write_be16(kern_raw, 20, 20)
+  write_be16(kern_raw, 22, -50 & 0xFFFF)
+
+  // Pair 2: (10, 30, -30)
+  write_be16(kern_raw, 24, 10)
+  write_be16(kern_raw, 26, 30)
+  write_be16(kern_raw, 28, -30 & 0xFFFF)
+
+  // Pair 3: (25, 40, -20)
+  write_be16(kern_raw, 30, 25)
+  write_be16(kern_raw, 32, 40)
+  write_be16(kern_raw, 34, -20 & 0xFFFF)
+
+  let kern_bytes = Bytes::from_array(kern_raw[:])
+
+  // Test parse_kern_table
+  let parsed = parse_kern_table(kern_bytes)
+  inspect(parsed.length(), content="3")
+  inspect(parsed[0].left, content="10")
+  inspect(parsed[0].right, content="20")
+  inspect(parsed[0].value, content="-50")
+
+  // Test rebuild_kern_table: retain only glyphs 10 and 20 (mapped to new GID 1 and 2)
+  let old_to_new_gid : Map[Int, Int] = Map([])
+  old_to_new_gid[10] = 1
+  old_to_new_gid[20] = 2
+  // 30, 25, 40 are not retained
+
+  let rebuilt_opt = rebuild_kern_table(kern_bytes, old_to_new_gid)
+  inspect(rebuilt_opt is Some(_), content="true")
+
+  let new_kern = rebuilt_opt.unwrap()
+  let new_pairs = parse_kern_table(new_kern)
+  inspect(new_pairs.length(), content="1")
+  inspect(new_pairs[0].left, content="1")
+  inspect(new_pairs[0].right, content="2")
+  inspect(new_pairs[0].value, content="-50")
+
+  // Test with no matching pairs -> None
+  let empty_gid_map : Map[Int, Int] = Map([])
+  empty_gid_map[1] = 1
+  let none_opt = rebuild_kern_table(kern_bytes, empty_gid_map)
+  inspect(none_opt is None, content="true")
+}

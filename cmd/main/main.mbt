@@ -31,6 +31,9 @@ fn print_usage() -> Unit {
   println(
     "  --css <family_name>       Also generate a CSS @font-face declaration file",
   )
+  println(
+    "  --no-kern                 Strip kern table (kerning pairs preserved by default)",
+  )
   println("  -v, --verbose             Print detailed inspection information")
   println("  -h, --help                Show this help message")
 }
@@ -63,6 +66,7 @@ fn main {
   let mut preset_arg = ""
   let mut out_path = ""
   let mut css_family = ""
+  let mut keep_kern = true
   let mut verbose = false
 
   let mut i = start_idx
@@ -92,6 +96,9 @@ fn main {
     } else if arg == "--css" && i + 1 < raw_args.length() {
       css_family = raw_args[i + 1]
       i += 2
+    } else if arg == "--no-kern" {
+      keep_kern = false
+      i += 1
     } else if arg == "-v" || arg == "--verbose" {
       verbose = true
       i += 1
@@ -211,7 +218,8 @@ fn main {
   }
 
   // Run pure subsetting engine
-  let result = match @moonsubset.subset(font_bytes, target_codepoints) {
+  let result = match
+    @moonsubset.subset(font_bytes, target_codepoints, keep_kern~) {
     Ok(r) => r
     Err(e) => {
       println("Error: Subsetting failed: \{e}")

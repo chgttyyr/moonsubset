@@ -10,6 +10,7 @@
 pub fn subset(
   font_data : Bytes,
   codepoints : Array[Int],
+  keep_kern? : Bool = true,
 ) -> Result[SubsetResult, FontError] {
   // Step 1: Parse sfnt container into tables
   let tables = match parse_sfnt(font_data) {
@@ -135,6 +136,18 @@ pub fn subset(
     ("maxp", new_maxp),
   ]
 
+  // Subset kern table if present and keep_kern is requested
+  if keep_kern {
+    match tables.get("kern") {
+      Some(orig_kern) =>
+        match rebuild_kern_table(orig_kern, old_to_new_gid) {
+          Some(new_kern) => rebuilt_tables.push(("kern", new_kern))
+          None => ()
+        }
+      None => ()
+    }
+  }
+
   // Preserve metadata tables if present in original font
   let meta_tags = ["name", "OS/2", "post"]
   for tag in meta_tags {
@@ -162,12 +175,13 @@ pub fn subset(
 pub fn subset_from_string(
   font_data : Bytes,
   text : String,
+  keep_kern? : Bool = true,
 ) -> Result[SubsetResult, FontError] {
   let codepoints : Array[Int] = []
   for c in text {
     codepoints.push(c.to_int())
   }
-  subset(font_data, codepoints)
+  subset(font_data, codepoints, keep_kern~)
 }
 
 ///|
