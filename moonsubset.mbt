@@ -9,7 +9,7 @@
 /// Returns a SubsetResult containing the new font bytes and compression metrics.
 pub fn subset(
   font_data : Bytes,
-  codepoints : Array[Int]
+  codepoints : Array[Int],
 ) -> Result[SubsetResult, FontError] {
   // Step 1: Parse sfnt container into tables
   let tables = match parse_sfnt(font_data) {
@@ -73,12 +73,11 @@ pub fn subset(
     if seen_cps.get(cp) is None {
       seen_cps[cp] = true
       match cp_to_old_gid.get(cp) {
-        Some(gid) => {
+        Some(gid) =>
           if gid > 0 {
             glyph_set[gid] = true
             retained_cps.push(cp)
           }
-        }
         None => ()
       }
     }
@@ -102,22 +101,18 @@ pub fn subset(
 
   // Step 9: Rebuild glyf and loca tables with rewritten component references
   let (new_glyf, new_loca, new_is_long) = rebuild_glyf_and_loca(
-    glyf,
-    orig_loca,
-    old_gids,
-    old_to_new_gid
+    glyf, orig_loca, old_gids, old_to_new_gid,
   )
 
   // Step 10: Rebuild cmap with new GID mapping
   let cmap_pairs : Array[(Int, Int)] = []
   for cp in retained_cps {
     match cp_to_old_gid.get(cp) {
-      Some(old_gid) => {
+      Some(old_gid) =>
         match old_to_new_gid.get(old_gid) {
           Some(new_gid) => cmap_pairs.push((cp, new_gid))
           None => ()
         }
-      }
       None => ()
     }
   }
@@ -166,7 +161,7 @@ pub fn subset(
 /// Subset a font by a string of characters.
 pub fn subset_from_string(
   font_data : Bytes,
-  text : String
+  text : String,
 ) -> Result[SubsetResult, FontError] {
   let codepoints : Array[Int] = []
   for c in text {
@@ -176,39 +171,185 @@ pub fn subset_from_string(
 }
 
 ///|
-/// Parse unicode hex strings like "U+4E00,U+4E8C" or "0x4E00,0x4E8C" into codepoints.
+/// Helper to parse a single hex string (optionally prefixed with U+ or 0x).
+fn parse_hex_codepoint(token : String) -> Int? {
+  let mut s = token.trim().to_upper()
+  if s.is_empty() {
+    return None
+  }
+  if s.has_prefix("U+") || s.has_prefix("0X") {
+    s = s[2:].to_owned()
+  }
+  if s.is_empty() {
+    return None
+  }
+  let mut cp = 0
+  for c in s {
+    let code = c.to_int()
+    let digit = if code >= '0'.to_int() && code <= '9'.to_int() {
+      code - '0'.to_int()
+    } else if code >= 'A'.to_int() && code <= 'F'.to_int() {
+      code - 'A'.to_int() + 10
+    } else {
+      return None
+    }
+    cp = (cp << 4) | digit
+  }
+  Some(cp)
+}
+
+///|
+/// Parse unicode hex strings, ranges, and wildcards into codepoints.
+/// Supported formats:
+/// - Single: "U+4E00", "0x4E00", "4E00"
+/// - Hyphen range: "U+0020-U+007E", "U+0020-007E", "0x20-0x7E"
+/// - Dot-dot range: "U+0020..U+007E", "0x4E00..0x4E50"
+/// - CSS Wildcards: "U+4E??" (matches U+4E00 through U+4EFF)
+/// - Delimiters: comma, semicolon, space, newline
 pub fn parse_unicode_string(input : String) -> Array[Int] {
   let codepoints : Array[Int] = []
-  let parts = input.split(",")
-  for part in parts {
-    let mut s = part.trim().to_upper()
-    if s.is_empty() {
-      continue
-    }
-    if s.has_prefix("U+") {
-      s = s[2:].to_owned()
-    } else if s.has_prefix("0X") {
-      s = s[2:].to_owned()
-    }
+  let seen : Map[Int, Bool] = Map([])
 
-    let mut cp = 0
-    let mut valid = true
-    for c in s {
-      let code = c.to_int()
-      let digit = if code >= '0'.to_int() && code <= '9'.to_int() {
-        code - '0'.to_int()
-      } else if code >= 'A'.to_int() && code <= 'F'.to_int() {
-        code - 'A'.to_int() + 10
-      } else {
-        valid = false
-        0
-      }
-      cp = (cp << 4) | digit
-    }
-    if valid && cp > 0 {
-      codepoints.push(cp)
+  // Normalize delimiters (semicolon, newline, tab to comma)
+  let norm_sb = StringBuilder()
+  for c in input {
+    if c == ';' || c == '\n' || c == '\r' || c == '\t' {
+      norm_sb.write_char(',')
+    } else {
+      norm_sb.write_char(c)
     }
   }
+  let normalized = norm_sb.to_string()
+  let parts = normalized.split(",")
+
+  for part in parts {
+    let trimmed = part.trim()
+    if trimmed.is_empty() {
+      continue
+    }
+
+    // Check if token has wildcard '?'
+    let mut has_wildcard = false
+    for c in trimmed {
+      if c == '?' {
+        has_wildcard = true
+      }
+    }
+
+    if has_wildcard {
+      let start_sb = StringBuilder()
+      let end_sb = StringBuilder()
+      for c in trimmed {
+        if c == '?' {
+          start_sb.write_char('0')
+          end_sb.write_char('F')
+        } else {
+          start_sb.write_char(c)
+          end_sb.write_char(c)
+        }
+      }
+      match
+        (
+          parse_hex_codepoint(start_sb.to_string()),
+          parse_hex_codepoint(end_sb.to_string()),
+        ) {
+        (Some(start_cp), Some(end_cp)) =>
+          for cp = start_cp; cp <= end_cp; cp = cp + 1 {
+            if cp > 0 && seen.get(cp) is None {
+              seen[cp] = true
+              codepoints.push(cp)
+            }
+          }
+        _ => ()
+      }
+      continue
+    }
+
+    // Check if token has ".." range
+    let mut dot_idx = -1
+    let chars : Array[Char] = []
+    for c in trimmed {
+      chars.push(c)
+    }
+    for i = 0; i < chars.length() - 1; i = i + 1 {
+      if chars[i] == '.' && chars[i + 1] == '.' {
+        dot_idx = i
+        break
+      }
+    }
+
+    if dot_idx >= 0 {
+      let left_sb = StringBuilder()
+      for i = 0; i < dot_idx; i = i + 1 {
+        left_sb.write_char(chars[i])
+      }
+      let right_sb = StringBuilder()
+      for i = dot_idx + 2; i < chars.length(); i = i + 1 {
+        right_sb.write_char(chars[i])
+      }
+      match
+        (
+          parse_hex_codepoint(left_sb.to_string()),
+          parse_hex_codepoint(right_sb.to_string()),
+        ) {
+        (Some(start_cp), Some(end_cp)) =>
+          for cp = start_cp; cp <= end_cp; cp = cp + 1 {
+            if cp > 0 && seen.get(cp) is None {
+              seen[cp] = true
+              codepoints.push(cp)
+            }
+          }
+        _ => ()
+      }
+      continue
+    }
+
+    // Check if token has "-" range (avoid leading hyphen if any)
+    let mut dash_idx = -1
+    for i = 1; i < chars.length(); i = i + 1 {
+      if chars[i] == '-' {
+        dash_idx = i
+        break
+      }
+    }
+
+    if dash_idx > 0 {
+      let left_sb = StringBuilder()
+      for i = 0; i < dash_idx; i = i + 1 {
+        left_sb.write_char(chars[i])
+      }
+      let right_sb = StringBuilder()
+      for i = dash_idx + 1; i < chars.length(); i = i + 1 {
+        right_sb.write_char(chars[i])
+      }
+      match
+        (
+          parse_hex_codepoint(left_sb.to_string()),
+          parse_hex_codepoint(right_sb.to_string()),
+        ) {
+        (Some(start_cp), Some(end_cp)) =>
+          for cp = start_cp; cp <= end_cp; cp = cp + 1 {
+            if cp > 0 && seen.get(cp) is None {
+              seen[cp] = true
+              codepoints.push(cp)
+            }
+          }
+        _ => ()
+      }
+      continue
+    }
+
+    // Single codepoint
+    match parse_hex_codepoint(trimmed.to_owned()) {
+      Some(cp) =>
+        if cp > 0 && seen.get(cp) is None {
+          seen[cp] = true
+          codepoints.push(cp)
+        }
+      None => ()
+    }
+  }
+
   codepoints
 }
 
@@ -244,7 +385,7 @@ pub fn inspect_font(font_data : Bytes) -> Result[FontInspection, FontError] {
     let checksum = read_u32(font_data, rec_offset + 4)
     let offset = read_u32(font_data, rec_offset + 8)
     let length = read_u32(font_data, rec_offset + 12)
-    table_entries.push({ tag, checksum, offset, length })
+    table_entries.push({ tag, checksum, offset, length, })
   }
 
   let num_glyphs = match tables_map.get("maxp") {
@@ -252,9 +393,14 @@ pub fn inspect_font(font_data : Bytes) -> Result[FontInspection, FontError] {
     None => 0
   }
 
-  let (is_long_loca, units_per_em, checksum_adjustment) = match tables_map.get("head") {
+  let (is_long_loca, units_per_em, checksum_adjustment) = match
+    tables_map.get("head") {
     Some(head) => {
-      let is_long = if head.length() >= 52 { read_i16(head, 50) == 1 } else { false }
+      let is_long = if head.length() >= 52 {
+        read_i16(head, 50) == 1
+      } else {
+        false
+      }
       let upem = if head.length() >= 20 { read_u16(head, 18) } else { 1000 }
       let csum_adj = if head.length() >= 12 { read_u32(head, 8) } else { 0 }
       (is_long, upem, csum_adj)
@@ -277,7 +423,7 @@ pub fn inspect_font(font_data : Bytes) -> Result[FontInspection, FontError] {
 /// Generate standard CSS @font-face declaration for the subset font.
 pub fn generate_font_face_css(
   family_name : String,
-  font_url_or_path : String
+  font_url_or_path : String,
 ) -> String {
   let sb = StringBuilder()
   sb.write_string("@font-face {\n")

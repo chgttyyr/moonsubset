@@ -19,7 +19,7 @@ repository = "https://github.com/chgttyyr/moonsubset"
 
 license = "Apache-2.0"
 
-keywords = ["font", "subset", "truetype", "ttf", "cli", "wasm", "typography"]
+keywords = [ "font", "subset", "truetype", "ttf", "cli", "wasm", "typography" ]
 
 preferred_target = "wasm"
 

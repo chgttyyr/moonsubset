@@ -9,10 +9,18 @@ pub fn parse_sfnt(data : Bytes) -> Result[Map[String, Bytes], FontError] {
   }
   let sfnt_version = read_u32(data, 0)
   if sfnt_version == 0x4F54544F {
-    return Err(UnsupportedFormat("OTTO (CFF/OpenType) not supported in TrueType subsetter"))
+    return Err(
+      UnsupportedFormat(
+        "OTTO (CFF/OpenType) not supported in TrueType subsetter",
+      ),
+    )
   }
   if sfnt_version == 0x774F4646 || sfnt_version == 0x774F4632 {
-    return Err(UnsupportedFormat("WOFF/WOFF2 container must be decompressed to TTF first"))
+    return Err(
+      UnsupportedFormat(
+        "WOFF/WOFF2 container must be decompressed to TTF first",
+      ),
+    )
   }
   if sfnt_version != 0x00010000 && sfnt_version != 0x74727565 {
     return Err(InvalidSfnt("Unknown sfnt version: 0x\{sfnt_version}"))
@@ -43,7 +51,7 @@ pub fn parse_sfnt(data : Bytes) -> Result[Map[String, Bytes], FontError] {
 /// and correctly sets the global head.checkSumAdjustment (0xB1B0AFBA).
 pub fn rebuild_sfnt(
   tables : Array[(String, Bytes)],
-  flavor? : Int = 0x00010000
+  flavor? : Int = 0x00010000,
 ) -> Bytes {
   // Sort tables alphabetically by tag per OpenType spec
   tables.sort_by(fn(a, b) { a.0.compare(b.0) })
@@ -112,7 +120,8 @@ pub fn rebuild_sfnt(
       let b1 = if i + 1 < total_size { out[i + 1].to_int() } else { 0 }
       let b2 = if i + 2 < total_size { out[i + 2].to_int() } else { 0 }
       let b3 = if i + 3 < total_size { out[i + 3].to_int() } else { 0 }
-      total_checksum = total_checksum + ((b0 << 24) | (b1 << 16) | (b2 << 8) | b3)
+      total_checksum = total_checksum +
+        ((b0 << 24) | (b1 << 16) | (b2 << 8) | b3)
     }
 
     // 3. checkSumAdjustment = 0xB1B0AFBA - total_checksum

@@ -40,7 +40,29 @@ test "wb/unicode_parser" {
   inspect(cps.length(), content="3")
   inspect(cps[0], content="19968") // 0x4E00
   inspect(cps[1], content="19969") // 0x4E01
-  inspect(cps[2], content="101")   // '65' parsed as hex 0x65 = 101
+  inspect(cps[2], content="101") // '65' parsed as hex 0x65 = 101
+
+  // Range parsing with hyphen
+  let range_cps = parse_unicode_string("U+0041-U+0045")
+  inspect(range_cps.length(), content="5") // A, B, C, D, E
+  inspect(range_cps[0], content="65")
+  inspect(range_cps[4], content="69")
+
+  // Range parsing with dot-dot
+  let dots_cps = parse_unicode_string("0x30..0x32")
+  inspect(dots_cps.length(), content="3") // '0', '1', '2'
+  inspect(dots_cps[0], content="48")
+  inspect(dots_cps[2], content="50")
+
+  // Wildcard parsing
+  let wild_cps = parse_unicode_string("U+004?")
+  inspect(wild_cps.length(), content="16") // 0x40..0x4F
+  inspect(wild_cps[0], content="64")
+  inspect(wild_cps[15], content="79")
+
+  // Mixed delimiters (semicolon, newline, comma)
+  let mixed = parse_unicode_string("U+0041; U+0042\nU+0043, 0x0044")
+  inspect(mixed.length(), content="4")
 }
 
 ///|

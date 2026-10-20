@@ -1,27 +1,41 @@
 ///|
 /// MoonSubset CLI: Production-grade TrueType font subsetting command-line tool.
-
 fn print_usage() -> Unit {
-  println("MoonSubset: Production TrueType font subsetting toolchain in pure MoonBit")
+  println(
+    "MoonSubset: Production TrueType font subsetting toolchain in pure MoonBit",
+  )
   println("")
   println("Usage:")
   println("  moonsubset subset --font <in.ttf> --chars <chars> --out <out.ttf>")
   println("  moonsubset subset -f <in.ttf> --text-file <text.txt> -o <out.ttf>")
-  println("  moonsubset subset -f <in.ttf> --preset <ascii|chinese|digits> -o <out.ttf>")
-  println("  moonsubset subset -f <in.ttf> --unicodes <U+4E00,U+4E8C> -o <out.ttf>")
+  println(
+    "  moonsubset subset -f <in.ttf> --preset <ascii|chinese|digits> -o <out.ttf>",
+  )
+  println(
+    "  moonsubset subset -f <in.ttf> --unicodes <U+0020-U+007E,U+4E00..U+4E50> -o <out.ttf>",
+  )
   println("")
   println("Options:")
   println("  -f, --font <path>         Path to input TrueType font (.ttf)")
   println("  -c, --chars <string>      Characters to retain in subset")
-  println("  -t, --text-file <path>    Text file containing characters to retain")
-  println("  -u, --unicodes <list>     Comma-separated hex codepoints (e.g. U+4E00,0x4E8C)")
-  println("  -p, --preset <name>       Preset character set (ascii, digits, alphanumeric, chinese)")
+  println(
+    "  -t, --text-file <path>    Text file containing characters to retain",
+  )
+  println(
+    "  -u, --unicodes <range>    Codepoint list, ranges, or wildcards (e.g. U+0020-U+007E, 0x4E00..0x4E50, U+4E??)",
+  )
+  println(
+    "  -p, --preset <name>       Preset character set (ascii, digits, alphanumeric, chinese)",
+  )
   println("  -o, --out <path>          Output path for subset font (.ttf)")
-  println("  --css <family_name>       Also generate a CSS @font-face declaration file")
+  println(
+    "  --css <family_name>       Also generate a CSS @font-face declaration file",
+  )
   println("  -v, --verbose             Print detailed inspection information")
   println("  -h, --help                Show this help message")
 }
 
+///|
 fn main {
   let raw_args = @env.args()
 
@@ -95,9 +109,7 @@ fn main {
 
   // Handle 'info' command
   if is_info_cmd {
-    let font_bytes = try {
-      @fs.read_file_to_bytes(font_path)
-    } catch {
+    let font_bytes = @fs.read_file_to_bytes(font_path) catch {
       _ => {
         println("Error: Failed to read font file: \{font_path}")
         return
@@ -112,12 +124,17 @@ fn main {
         println("Tables Count: \{info.num_tables}")
         println("Total Glyphs: \{info.num_glyphs}")
         println("Units Per Em: \{info.units_per_em}")
-        println("Loca Format : " + (if info.is_long_loca { "Long (32-bit)" } else { "Short (16-bit)" }))
+        println(
+          "Loca Format : " +
+          (if info.is_long_loca { "Long (32-bit)" } else { "Short (16-bit)" }),
+        )
         println("Checksum Adj: 0x\{info.checksum_adjustment}")
         println("--------------------------------------------------")
         println("Table Directory:")
         for t in info.tables {
-          println("  - \{t.tag} (offset=\{t.offset}, length=\{t.length}, checksum=0x\{t.checksum})")
+          println(
+            "  - \{t.tag} (offset=\{t.offset}, length=\{t.length}, checksum=0x\{t.checksum})",
+          )
         }
         println("==================================================")
       }
@@ -167,13 +184,14 @@ fn main {
   // 4. From preset
   if !preset_arg.is_empty() {
     match @moonsubset.get_preset_by_name(preset_arg) {
-      Some(preset_cps) => {
+      Some(preset_cps) =>
         for cp in preset_cps {
           target_codepoints.push(cp)
         }
-      }
       None => {
-        println("Error: Unknown preset: '\{preset_arg}'. Supported presets: ascii, digits, alphanumeric, chinese")
+        println(
+          "Error: Unknown preset: '\{preset_arg}'. Supported presets: ascii, digits, alphanumeric, chinese",
+        )
         return
       }
     }
@@ -185,9 +203,7 @@ fn main {
   }
 
   // Read input font bytes
-  let font_bytes = try {
-    @fs.read_file_to_bytes(font_path)
-  } catch {
+  let font_bytes = @fs.read_file_to_bytes(font_path) catch {
     _ => {
       println("Error: Failed to read input font file: \{font_path}")
       return
@@ -204,9 +220,7 @@ fn main {
   }
 
   // Write subset font bytes
-  try {
-    @fs.write_bytes_to_file(out_path, result.bytes())
-  } catch {
+  @fs.write_bytes_to_file(out_path, result.bytes()) catch {
     _ => {
       println("Error: Failed to write output font to: \{out_path}")
       return
@@ -230,10 +244,16 @@ fn main {
   println("==================================================")
   println("  MoonSubset: Subsetting Completed Successfully!  ")
   println("==================================================")
-  println("Original Size : \{result.orig_size} bytes (\{result.orig_num_glyphs} glyphs)")
-  println("Subset Size   : \{result.subset_size} bytes (\{result.subset_num_glyphs} glyphs)")
+  println(
+    "Original Size : \{result.orig_size} bytes (\{result.orig_num_glyphs} glyphs)",
+  )
+  println(
+    "Subset Size   : \{result.subset_size} bytes (\{result.subset_num_glyphs} glyphs)",
+  )
   println("Compression   : \{savings}% reduction")
-  println("Retained Chars: \{result.retained_codepoints.length()} unique characters (plus .notdef)")
+  println(
+    "Retained Chars: \{result.retained_codepoints.length()} unique characters (plus .notdef)",
+  )
   println("Output File   : \{out_path}")
   println("==================================================")
 }

@@ -6,7 +6,7 @@
 pub fn parse_loca(
   loca_data : Bytes,
   num_glyphs : Int,
-  is_long : Bool
+  is_long : Bool,
 ) -> Result[Array[Int], FontError] {
   let expected_entries = num_glyphs + 1
   if is_long {
@@ -35,7 +35,7 @@ pub fn parse_loca(
 pub fn scan_compound_refs(
   glyf_data : Bytes,
   loca : Array[Int],
-  glyph_set : Map[Int, Bool]
+  glyph_set : Map[Int, Bool],
 ) -> Unit {
   let mut changed = true
   while changed {
@@ -104,7 +104,7 @@ pub fn scan_compound_refs(
 /// Rewrite compound glyph component indices to new glyph IDs.
 fn rewrite_compound_glyph(
   glyph_data : Bytes,
-  old_to_new_gid : Map[Int, Int]
+  old_to_new_gid : Map[Int, Int],
 ) -> Bytes {
   let out : Array[Byte] = Array::make(glyph_data.length(), b'\x00')
   for i = 0; i < glyph_data.length(); i = i + 1 {
@@ -158,7 +158,7 @@ pub fn rebuild_glyf_and_loca(
   glyf_data : Bytes,
   orig_loca : Array[Int],
   old_gids : Array[Int],
-  old_to_new_gid : Map[Int, Int]
+  old_to_new_gid : Map[Int, Int],
 ) -> (Bytes, Bytes, Bool) {
   let glyf_parts : Array[Bytes] = []
   let loca_offsets : Array[Int] = []

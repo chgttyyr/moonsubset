@@ -60,7 +60,7 @@ pub fn rebuild_hhea(orig_hhea : Bytes, new_num_glyphs : Int) -> Bytes {
 pub fn rebuild_hmtx(
   orig_hmtx : Bytes,
   old_gids : Array[Int],
-  orig_num_h_metrics : Int
+  orig_num_h_metrics : Int,
 ) -> Bytes {
   let num_glyphs = old_gids.length()
   let out_len = num_glyphs * 4

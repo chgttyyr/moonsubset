@@ -28,6 +28,10 @@ pub fn get_digits_preset() -> Array[Int]
 
 pub fn get_preset_by_name(String) -> Array[Int]?
 
+pub fn inspect_font(Bytes) -> Result[FontInspection, FontError]
+
+pub fn inspect_font_wasm(Bytes) -> String
+
 pub fn log2_floor(Int) -> Int
 
 pub fn pad4(Int) -> Int
@@ -70,6 +74,8 @@ pub fn subset(Bytes, Array[Int]) -> Result[SubsetResult, FontError]
 
 pub fn subset_from_string(Bytes, String) -> Result[SubsetResult, FontError]
 
+pub fn subset_string_wasm(Bytes, String) -> Bytes
+
 pub fn write_be16(Array[Byte], Int, Int) -> Unit
 
 pub fn write_be32(Array[Byte], Int, Int) -> Unit
@@ -87,6 +93,16 @@ pub(all) enum FontError {
   UnsupportedFormat(String)
 } derive(Eq, @debug.Debug)
 pub impl Show for FontError
+
+pub(all) struct FontInspection {
+  sfnt_version : Int
+  num_tables : Int
+  num_glyphs : Int
+  is_long_loca : Bool
+  units_per_em : Int
+  checksum_adjustment : Int
+  tables : Array[TableEntry]
+} derive(@debug.Debug)
 
 pub(all) struct SubsetResult {
   output_bytes : Bytes

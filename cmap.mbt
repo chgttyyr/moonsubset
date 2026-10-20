@@ -51,19 +51,27 @@ pub fn parse_cmap(data : Bytes) -> Result[Map[Int, Int], FontError] {
   } else if fmt4_offset >= 0 {
     parse_cmap_format4(data, fmt4_offset)
   } else {
-    Err(UnsupportedFormat("No supported cmap subtable found (requires format 4 or 12)"))
+    Err(
+      UnsupportedFormat(
+        "No supported cmap subtable found (requires format 4 or 12)",
+      ),
+    )
   }
 }
 
 ///|
 /// Parse cmap format 12 subtable (32-bit full Unicode)
-fn parse_cmap_format12(data : Bytes, offset : Int) -> Result[Map[Int, Int], FontError] {
+fn parse_cmap_format12(
+  data : Bytes,
+  offset : Int,
+) -> Result[Map[Int, Int], FontError] {
   if offset + 16 > data.length() {
     return Err(InvalidCmap("Format 12 subtable header truncated"))
   }
   let length = read_u32(data, offset + 4)
   let n_groups = read_u32(data, offset + 12)
-  if offset + length > data.length() || offset + 16 + n_groups * 12 > data.length() {
+  if offset + length > data.length() ||
+    offset + 16 + n_groups * 12 > data.length() {
     return Err(InvalidCmap("Format 12 subtable groups truncated"))
   }
 
@@ -86,14 +94,18 @@ fn parse_cmap_format12(data : Bytes, offset : Int) -> Result[Map[Int, Int], Font
 
 ///|
 /// Parse cmap format 4 subtable (16-bit BMP)
-fn parse_cmap_format4(data : Bytes, offset : Int) -> Result[Map[Int, Int], FontError] {
+fn parse_cmap_format4(
+  data : Bytes,
+  offset : Int,
+) -> Result[Map[Int, Int], FontError] {
   if offset + 14 > data.length() {
     return Err(InvalidCmap("Format 4 subtable header truncated"))
   }
   let length = read_u16(data, offset + 2)
   let seg_count_x2 = read_u16(data, offset + 6)
   let seg_count = seg_count_x2 / 2
-  if offset + length > data.length() || offset + 14 + seg_count * 8 > data.length() {
+  if offset + length > data.length() ||
+    offset + 14 + seg_count * 8 > data.length() {
     return Err(InvalidCmap("Format 4 subtable segments truncated"))
   }
 
@@ -212,7 +224,8 @@ pub fn build_cmap_format12_subtable(pairs : Array[(Int, Int)]) -> Bytes {
     let (cp, gid) = pair
     let can_extend = if groups.length() > 0 {
       let (_, end_cp, start_gid) = groups[groups.length() - 1]
-      cp == end_cp + 1 && gid == start_gid + (cp - groups[groups.length() - 1].0)
+      cp == end_cp + 1 &&
+      gid == start_gid + (cp - groups[groups.length() - 1].0)
     } else {
       false
     }
@@ -231,9 +244,9 @@ pub fn build_cmap_format12_subtable(pairs : Array[(Int, Int)]) -> Bytes {
   let out : Array[Byte] = Array::make(subtable_len, b'\x00')
 
   write_be16(out, 0, 12) // format 12
-  write_be16(out, 2, 0)  // reserved
+  write_be16(out, 2, 0) // reserved
   write_be32(out, 4, subtable_len) // length
-  write_be32(out, 8, 0)  // language
+  write_be32(out, 8, 0) // language
   write_be32(out, 12, num_groups)
 
   for i, group in groups {

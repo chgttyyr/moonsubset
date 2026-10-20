@@ -10,7 +10,8 @@ pub(all) enum FontError {
   UnsupportedFormat(String)
 } derive(Debug, Eq)
 
-pub impl Show for FontError with output(self : FontError, logger : &Logger) -> Unit {
+///|
+pub impl Show for FontError with fn output(self : FontError, logger : &Logger) -> Unit {
   match self {
     InvalidSfnt(s) => logger.write_string("InvalidSfnt(" + s + ")")
     TableNotFound(s) => logger.write_string("TableNotFound(" + s + ")")

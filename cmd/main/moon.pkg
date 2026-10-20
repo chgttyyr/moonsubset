@@ -1,7 +1,7 @@
 import {
-  "moonbitlang/core/env" @env,
-  "moonbitlang/x/fs" @fs,
-  "chgttyyr/moonsubset" @moonsubset,
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "chgttyyr/moonsubset",
 }
 
 pkgtype(kind: "executable")
