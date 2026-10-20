@@ -54,3 +54,14 @@ test "wb/presets" {
   inspect(get_preset_by_name("chinese") is Some(_), content="true")
   inspect(get_preset_by_name("unknown") is None, content="true")
 }
+
+///|
+test "wb/wasm_exports" {
+  let font_bytes = @fs.read_file_to_bytes("fixtures/test-font.ttf")
+  let sub_bytes = subset_string_wasm(font_bytes, "ABC")
+  inspect(sub_bytes.length() > 0, content="true")
+  inspect(sub_bytes.length() < font_bytes.length(), content="true")
+
+  let json = inspect_font_wasm(font_bytes)
+  inspect(json.contains("num_glyphs"), content="true")
+}
