@@ -25,10 +25,16 @@ fn print_usage() -> Unit {
 fn main {
   let raw_args = @env.args()
 
-  // Find start of actual options (skip executable name and "subset" subcommand if given)
+  // Subcommands: subset, info
+  let mut is_info_cmd = false
   let mut start_idx = 1
-  if raw_args.length() > 1 && raw_args[1] == "subset" {
-    start_idx = 2
+  if raw_args.length() > 1 {
+    if raw_args[1] == "info" {
+      is_info_cmd = true
+      start_idx = 2
+    } else if raw_args[1] == "subset" {
+      start_idx = 2
+    }
   }
 
   if raw_args.length() <= start_idx {
@@ -84,6 +90,39 @@ fn main {
 
   if font_path.is_empty() {
     println("Error: Missing required argument: --font <path>")
+    return
+  }
+
+  // Handle 'info' command
+  if is_info_cmd {
+    let font_bytes = try {
+      @fs.read_file_to_bytes(font_path)
+    } catch {
+      _ => {
+        println("Error: Failed to read font file: \{font_path}")
+        return
+      }
+    }
+    match @moonsubset.inspect_font(font_bytes) {
+      Ok(info) => {
+        println("==================================================")
+        println("  MoonSubset: Font Inspection Report              ")
+        println("==================================================")
+        println("File: \{font_path} (\{font_bytes.length()} bytes)")
+        println("Tables Count: \{info.num_tables}")
+        println("Total Glyphs: \{info.num_glyphs}")
+        println("Units Per Em: \{info.units_per_em}")
+        println("Loca Format : " + (if info.is_long_loca { "Long (32-bit)" } else { "Short (16-bit)" }))
+        println("Checksum Adj: 0x\{info.checksum_adjustment}")
+        println("--------------------------------------------------")
+        println("Table Directory:")
+        for t in info.tables {
+          println("  - \{t.tag} (offset=\{t.offset}, length=\{t.length}, checksum=0x\{t.checksum})")
+        }
+        println("==================================================")
+      }
+      Err(e) => println("Error: Failed to inspect font: \{e}")
+    }
     return
   }
 

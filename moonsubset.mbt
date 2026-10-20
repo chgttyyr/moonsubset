@@ -213,6 +213,67 @@ pub fn parse_unicode_string(input : String) -> Array[Int] {
 }
 
 ///|
+/// Font inspection summary for diagnostics and CLI info command.
+pub(all) struct FontInspection {
+  sfnt_version : Int
+  num_tables : Int
+  num_glyphs : Int
+  is_long_loca : Bool
+  units_per_em : Int
+  checksum_adjustment : Int
+  tables : Array[TableEntry]
+} derive(Debug)
+
+///|
+/// Inspect a font binary and extract diagnostic information without modifying it.
+pub fn inspect_font(font_data : Bytes) -> Result[FontInspection, FontError] {
+  if font_data.length() < 12 {
+    return Err(InvalidSfnt("Font data too short"))
+  }
+  let sfnt_version = read_u32(font_data, 0)
+  let num_tables = read_u16(font_data, 4)
+  let tables_map = match parse_sfnt(font_data) {
+    Ok(m) => m
+    Err(e) => return Err(e)
+  }
+
+  let table_entries : Array[TableEntry] = []
+  for i = 0; i < num_tables; i = i + 1 {
+    let rec_offset = 12 + i * 16
+    let tag = read_tag(font_data, rec_offset)
+    let checksum = read_u32(font_data, rec_offset + 4)
+    let offset = read_u32(font_data, rec_offset + 8)
+    let length = read_u32(font_data, rec_offset + 12)
+    table_entries.push({ tag, checksum, offset, length })
+  }
+
+  let num_glyphs = match tables_map.get("maxp") {
+    Some(maxp) => if maxp.length() >= 6 { read_u16(maxp, 4) } else { 0 }
+    None => 0
+  }
+
+  let (is_long_loca, units_per_em, checksum_adjustment) = match tables_map.get("head") {
+    Some(head) => {
+      let is_long = if head.length() >= 52 { read_i16(head, 50) == 1 } else { false }
+      let upem = if head.length() >= 20 { read_u16(head, 18) } else { 1000 }
+      let csum_adj = if head.length() >= 12 { read_u32(head, 8) } else { 0 }
+      (is_long, upem, csum_adj)
+    }
+    None => (false, 1000, 0)
+  }
+
+  Ok({
+    sfnt_version,
+    num_tables,
+    num_glyphs,
+    is_long_loca,
+    units_per_em,
+    checksum_adjustment,
+    tables: table_entries,
+  })
+}
+
+///|
 /// Generate standard CSS @font-face declaration for the subset font.
 pub fn generate_font_face_css(
   family_name : String,

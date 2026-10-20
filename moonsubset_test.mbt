@@ -165,4 +165,9 @@ test "test_9/edge_cases" {
   // Case 9.4: Malformed font data returns error instead of crashing
   let bad_data = Bytes::make(5, b'\x00')
   inspect(@moonsubset.subset(bad_data, [65]) is Err(_), content="true")
+
+  // Case 9.5: Inspect font diagnostics
+  let insp = @moonsubset.inspect_font(font_bytes).unwrap()
+  inspect(insp.num_glyphs, content="470")
+  inspect(insp.num_tables, content="17")
 }
